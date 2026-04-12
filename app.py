@@ -9,8 +9,7 @@ from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = 'secure_attendance_key_123'  # Needed for session management
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, 'attendance.db')
+DATABASE = 'attendance.db'
 
 # Hardcoded Admin Credentials
 ADMIN_USER = 'admin'
@@ -30,6 +29,7 @@ def init_db():
             name TEXT NOT NULL,
             emp_id TEXT NOT NULL UNIQUE,
             qr_token TEXT NOT NULL UNIQUE,
+            phone TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -46,8 +46,20 @@ def init_db():
     conn.commit()
     conn.close()
 
+def migrate_db():
+    conn = get_db()
+    try:
+        conn.execute('ALTER TABLE users ADD COLUMN phone TEXT')
+        conn.commit()
+        print("Migration: Added phone column to users table")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+    conn.close()
+
 # Initialize the db on startup
 init_db()
+migrate_db()
 
 # --- Authentication Middleware ---
 def login_required(f):
@@ -111,6 +123,7 @@ def create_user():
     data = request.json
     name = data.get('name')
     emp_id = data.get('emp_id')
+    phone = data.get('phone')
     if not name or not emp_id:
         return jsonify({'error': 'Name and Student ID required'}), 400
     
@@ -118,7 +131,7 @@ def create_user():
     conn = get_db()
     try:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (name, emp_id, qr_token) VALUES (?, ?, ?)", (name, emp_id, qr_token))
+        cursor.execute("INSERT INTO users (name, emp_id, qr_token, phone) VALUES (?, ?, ?, ?)", (name, emp_id, qr_token, phone))
         conn.commit()
         new_id = cursor.lastrowid
         conn.close()
@@ -171,12 +184,27 @@ def scan_qr():
     conn.commit()
     conn.close()
 
+    # Send message notification (Implementation placeholder)
+    if user['phone']:
+        send_attendance_msg(user['phone'], display_name, status, now_time)
+
     return jsonify({
         'message': f'Attendance marked {status} successfully',
         'status': status,
         'user': display_name,
         'time': now_time
     })
+
+def send_attendance_msg(phone, name, status, time):
+    """
+    Placeholder for sending SMS/WhatsApp message.
+    In a real app, you would use Twilio, Vonage, or a WhatsApp Business API here.
+    """
+    msg = f"Hello {name}, you have been marked {status} in the lab at {time}."
+    print(f"DEBUG: Sending message to {phone}: {msg}")
+    # Integration example (requires library like 'twilio'):
+    # client = Client(account_sid, auth_token)
+    # client.messages.create(body=msg, from_=twilio_num, to=phone)
 
 @app.route('/api/attendance', methods=['GET'])
 @login_required
