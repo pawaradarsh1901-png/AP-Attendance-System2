@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Database (optional - ignore if you want a fresh DB in the container)
+# attendance.db
+
+# Misc
+.vscode/
+.idea/
+*.zip
+tunnel_output.txt
+run.bat
+prepare_zip.py
