@@ -20,8 +20,8 @@ ADMIN_PASS = 'admin'
 # --- Messaging Configuration (Manual & Auto) ---
 # Sign up at twilio.com to get these keys for free (Trial)
 # OR use another provider by updating send_sms_logic()
-//TWILIO_ACCOUNT_SID = 'AC3fdb1da371075822935a3564e65fc1f7'
-//TWILIO_AUTH_TOKEN = '17b911486dc8cf4ba54a7605fea6021f'
+TWILIO_ACCOUNT_SID = 'AC3fdb1da371075822935a3564e65fc1f7'
+TWILIO_AUTH_TOKEN = '17b911486dc8cf4ba54a7605fea6021f'
 TWILIO_PHONE_NUMBER = '+16626414173'
 ENABLE_SMS = True # Set to True once keys are added
 
