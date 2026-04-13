@@ -6,6 +6,8 @@ import uuid
 import os
 import qrcode
 from io import BytesIO
+import logging
+from twilio.rest import Client
 
 app = Flask(__name__)
 app.secret_key = 'secure_attendance_key_123'  # Needed for session management
@@ -14,6 +16,14 @@ DATABASE = 'attendance.db'
 # Hardcoded Admin Credentials
 ADMIN_USER = 'admin'
 ADMIN_PASS = 'admin'
+
+# --- Messaging Configuration (Manual & Auto) ---
+# Sign up at twilio.com to get these keys for free (Trial)
+# OR use another provider by updating send_sms_logic()
+TWILIO_ACCOUNT_SID = 'AC3fdb1da371075822935a3564e65fc1f7'
+TWILIO_AUTH_TOKEN = '17b911486dc8cf4ba54a7605fea6021f'
+TWILIO_PHONE_NUMBER = '+16626414173'
+ENABLE_SMS = True # Set to True once keys are added
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -184,9 +194,10 @@ def scan_qr():
     conn.commit()
     conn.close()
 
-    # Send message notification (Implementation placeholder)
+    # Send message notification
     if user['phone']:
-        send_attendance_msg(user['phone'], display_name, status, now_time)
+        msg = f"Hello {display_name}, you have been marked {status} in the lab at {now_time}."
+        send_sms_logic(user['phone'], msg)
 
     return jsonify({
         'message': f'Attendance marked {status} successfully',
@@ -195,16 +206,52 @@ def scan_qr():
         'time': now_time
     })
 
-def send_attendance_msg(phone, name, status, time):
+@app.route('/api/send-sms', methods=['POST'])
+@login_required
+def manual_send_sms():
+    data = request.json
+    phone = data.get('phone')
+    message = data.get('message')
+    
+    if not message:
+        return jsonify({'error': 'Message content is empty'}), 400
+    
+    if phone:
+        # Send to specific student
+        success, error = send_sms_logic(phone, message)
+        if not success:
+            return jsonify({'success': False, 'error': error}), 400
+    else:
+        # Send to all students
+        conn = get_db()
+        users = conn.execute('SELECT phone FROM users WHERE phone IS NOT NULL AND phone != ""').fetchall()
+        conn.close()
+        for u in users:
+            send_sms_logic(u['phone'], message)
+        success = True
+
+    return jsonify({'success': success})
+
+def send_sms_logic(phone, msg):
     """
-    Placeholder for sending SMS/WhatsApp message.
-    In a real app, you would use Twilio, Vonage, or a WhatsApp Business API here.
+    Core logic to send an SMS. Currently using Twilio.
     """
-    msg = f"Hello {name}, you have been marked {status} in the lab at {time}."
-    print(f"DEBUG: Sending message to {phone}: {msg}")
-    # Integration example (requires library like 'twilio'):
-    # client = Client(account_sid, auth_token)
-    # client.messages.create(body=msg, from_=twilio_num, to=phone)
+    print(f"DEBUG: Internal request to send SMS to {phone}: {msg}", flush=True)
+    
+    if not ENABLE_SMS:
+        err = "SMS is DISABLED in app.py. Please add Twilio keys and set ENABLE_SMS = True."
+        print(f"DEBUG: {err}", flush=True)
+        return False, err
+
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        client.messages.create(body=msg, from_=TWILIO_PHONE_NUMBER, to=phone)
+        print(f"SUCCESS: SMS sent to {phone}", flush=True)
+        return True, None
+    except Exception as e:
+        err_msg = f"Twilio Error: {str(e)}"
+        print(f"ERROR: {err_msg}", flush=True)
+        return False, err_msg
 
 @app.route('/api/attendance', methods=['GET'])
 @login_required
