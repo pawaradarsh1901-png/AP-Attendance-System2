@@ -23,7 +23,7 @@ ADMIN_PASS = 'admin'
 //TWILIO_ACCOUNT_SID = 'AC3fdb1da371075822935a3564e65fc1f7'
 //TWILIO_AUTH_TOKEN = '17b911486dc8cf4ba54a7605fea6021f'
 TWILIO_PHONE_NUMBER = '+16626414173'
-ENABLE_SMS = False # Set to True once keys are added
+ENABLE_SMS = True # Set to True once keys are added
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
